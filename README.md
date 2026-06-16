@@ -232,6 +232,7 @@ A través de la explotación interactiva del portal y la segmentación por pará
 2. **Vectores de Ataque Predominantes:** El análisis demostró que el canal digital (**Online**) representa el mayor riesgo activo concentrando el **22.7%** de los incidentes de fraude. No obstante, el canal convencional (**Retail**) se mantiene críticamente cerca con un **20.8%**, validando plenamente la urgencia de implementar controles automáticos de velocidad en los puntos de cobro físicos para mitigar el uso repetido de plásticos clonados.
 
 ## 📚 Referencias
+* *Goyal, A. [Kaggle - Fraud Detection Dataset](https://www.kaggle.com/datasets/goyaladi/fraud-detection-dataset/data)*
 * *Kimball, R. (2013). The Data Warehouse Toolkit: The Definitive Guide to Dimensional Modeling.*
 * *PostgreSQL Advanced Documentation - Window Functions & Aggregate Filters.*
 * *Material oficial del Diplomado: Módulo 4 - Cloud Data Warehousing e Ingeniería de Datos.*
