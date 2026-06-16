@@ -44,7 +44,7 @@ A través de un bucle multiplicador con desfase controlado (*Time-shifting* y *I
 El sistema analítico fue desarrollado utilizando **Streamlit** y **Plotly Express**, lo que permite una explotación dinámica de las 15,000 transacciones alojadas en AWS Aurora en lugar de reportes estáticos tradicionales.
 
 ### Evidencia de la Interfaz Analítica
-![Monitoreo de Fraude en Retail](dashboard/dashboard_view.jpg)
+![Monitoreo de Fraude en Retail](dashboard/dashboard_view..png)
 
 ### 🧠 Hallazgos Principales del Negocio
 Tras la ejecución de las consultas de SQL avanzado y la exploración interactiva del portal de control, se identificaron los siguientes patrones críticos de riesgo operativo:
