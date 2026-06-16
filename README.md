@@ -77,6 +77,21 @@ Instala las librerías necesarias en tu sistema operativo ejecutando el siguient
 ```bash
 pip install pandas sqlalchemy psycopg2-binary streamlit plotly
 ```
+
+### 3. Ejecución del Pipeline ETL Automatizado (Variables de Entorno)
+Para cumplir con las buenas prácticas de seguridad y evitar dejar contraseñas hardcodeadas en texto plano en GitHub, las credenciales de AWS se inyectan directamente en la memoria de la terminal al arrancar el proceso:
+```bash
+AWS_DB_PASS='TUPASSWORD' AWS_DB_HOST='aurora-mod4.cluster-XXX.us-east-1.rds.amazonaws.com' database northwind python scripts/etl_pipeline.py
+```
+Mecánica del Script: El pipeline limpiará de forma idempotente los residuos históricos mediante un comando TRUNCATE CASCADE, procesará las transformaciones, ejecutará el algoritmo de Data Augmentation a 15,000 registros y poblará las tablas relacionales de la nube automáticamente.
+
+### 4. Lanzamiento del Dashboard Analítico Interactivo
+Para encender el portal de visualización dinámico conectado por canal seguro SSL a AWS Aurora, ejecuta el siguiente comando en tu consola:
+'''Bash
+AWS_DB_PASS='TUPASSWORD' AWS_DB_HOST='aurora-mod4.cluster-XXX.us-east-1.rds.amazonaws.com' streamlit run dashboard/app.py
+'''
+Esto levantará el servidor web local y abrirá de manera automática la pestaña del navegador en la dirección http://localhost:8501
+
 ## 2. Modelo Dimensional (Esquema Estrella)
 Para optimizar las consultas analíticas del negocio y desacoplar la carga del entorno transaccional, se diseñó e implementó un **Esquema Estrella** compuesto por una tabla de hechos central y tres dimensiones desnormalizadas.
 
