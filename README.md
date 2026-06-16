@@ -38,3 +38,16 @@ A través de un bucle multiplicador con desfase controlado (*Time-shifting* y *I
 1. **Stress Testing de la Infraestructura:** Permite validar el comportamiento de los índices creados en PostgreSQL y el tiempo de respuesta de las consultas bajo una carga volumétrica real.
 2. **Realismo y Variabilidad Numérica:** El algoritmo aplica un factor de oscilación pseudoaleatoria a los montos (`TransactionAmount`) y propaga los timestamps a lo largo de 15 días consecutivos, simulando un histórico operativo real sin corromper los perfiles de los clientes existentes.
 3. **Preservación de la Integridad Referencial:** La expansión ocurre de manera controlada garantizando que todas las llaves foráneas sigan apuntando correctamente a las dimensiones base (`Dim_Clientes` y `Dim_Comercios`).
+
+## 📊 Capa de Visualización (Dashboard Interactivo)
+
+El sistema analítico fue desarrollado utilizando **Streamlit** y **Plotly Express**, lo que permite una explotación dinámica de las 15,000 transacciones alojadas en AWS Aurora en lugar de reportes estáticos tradicionales.
+
+### Evidencia de la Interfaz Analítica
+![Monitoreo de Fraude en Retail](dashboard/dashboard_view.jpg)
+
+### 🧠 Hallazgos Principales del Negocio
+Tras la ejecución de las consultas de SQL avanzado y la exploración interactiva del portal de control, se identificaron los siguientes patrones críticos de riesgo operativo:
+
+1. **Comercios Críticos (Vulnerabilidad POS):** El establecimiento denominado **Merchant 2583** se consolidó de manera aislada como el punto de venta más vulnerable de la cadena, encabezando las pérdidas financieras acumuladas por fraude con un impacto superior a los $1,450 USD. Las sucursales `Merchant 2328` y `Merchant 2022` completan el podio de riesgo transaccional, requiriendo auditorías urgentes sobre sus terminales físicas.
+2. **Vectores de Ataque por Categoría:** La distribución de alertas de riesgo demostró que el fraude electrónico o digital (**Online**) representa la mayor amenaza activa con un **22.7%** de los incidentes totales. No obstante, el canal convencional físico (**Retail**) se mantiene peligrosamente cerca con un **20.8%**, lo que justifica plenamente la implementación de reglas automáticas de control por velocidad y multi-tarjeta en los puntos de cobro.
