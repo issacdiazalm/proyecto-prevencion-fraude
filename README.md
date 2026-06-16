@@ -65,7 +65,7 @@ proyecto-prevencion-fraude/
 └── dashboard/                   # Capa de Business Intelligence y Explotación
     ├── app.py                   # Aplicación interactiva con Streamlit y Plotly
     └── dashboard_view.jpg       # Evidencia gráfica del portal analítico funcionando
-
+```
 --- 
 ## 🛠️ Cómo Ejecutar e Instalar (Paso a Paso)
 
@@ -76,7 +76,7 @@ Asume que se cuenta con el clúster cloud activo del diplomado (`aurora-mod4`). 
 Instala las librerías necesarias en tu sistema operativo ejecutando el siguiente comando en la terminal de tu Mac:
 ```bash
 pip install pandas sqlalchemy psycopg2-binary streamlit plotly
-
+```
 ## 2. Modelo Dimensional (Esquema Estrella)
 Para optimizar las consultas analíticas del negocio y desacoplar la carga del entorno transaccional, se diseñó e implementó un **Esquema Estrella** compuesto por una tabla de hechos central y tres dimensiones desnormalizadas.
 
