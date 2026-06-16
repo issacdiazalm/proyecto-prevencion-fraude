@@ -1,16 +1,81 @@
 # 🛡️ Data Warehouse & Analytics para la Prevención de Fraudes en Retail
 
-## 1. 🎯 Planteamiento del Problema y Justificación del Dataset
-En la industria del retail moderno, el fraude transaccional en puntos de venta (POS) y canales digitales representa una de las mayores fuentes de pérdida financiera (Loss Prevention). Este proyecto resuelve una necesidad de negocio crítica: **¿Cuáles son los patrones de comportamiento, horarios y sucursales que concentran el mayor riesgo operativo y mermas por transacciones anómalas?**
+## 1. 📋 Resumen Ejecutivo
 
-Para responder a esto, se seleccionó un conjunto de datos altamente relacional de la plataforma Kaggle que simula la operación integral de retail (perfiles de clientes, balances de cuentas, metadatos transaccionales y etiquetas de riesgo). 
+:information_source: Este proyecto final implementa una solución analítica de Business Intelligence (BI) de extremo a extremo para el monitoreo y prevención de fraudes transaccionales en el sector retail. Cubre el ciclo completo: desde la ingesta multi-fuente, modelado estrella, persistencia cloud en AWS, analítica SQL avanzada hasta la explotación visual interactiva.
 
-### 🧠 Algoritmo de Escalamiento Volumétrico (Data Augmentation)
-El conjunto de datos original proveía únicamente una muestra limitada a 1,000 registros históricos, un volumen subóptimo para evaluar el rendimiento real de un entorno analítico corporativo. Para cumplir con el estándar de la rúbrica (~10k filas o más) y simular un ambiente de alta carga (*Stress Testing*), se desarrolló un algoritmo de **Data Augmentation** programático dentro del pipeline de Python.
+| Campo | Valor |
+| ------ | ------ |
+| **Pregunta Analítica** | ¿Cuáles son los patrones temporales (horarios), las sucursales críticas y los perfiles transaccionales que concentran la mayor vulnerabilidad y pérdida financiera por fraude en la cadena retail? |
+| **Dataset Base** | *Fraud Detection Dataset* (Fuentes operacionales relacionales fragmentadas recopiladas desde Kaggle) |
+| **Volumen Analítico** | 1,000 registros base escalados programáticamente a **15,000 transacciones únicas** |
+| **Modelo Dimensional** | Esquema Estrella con 1 Fact Table (`fact_transacciones`) y 3 Dimensiones desnormalizadas (`dim_clientes`, `dim_comercios`, `dim_tiempo`) |
+| **Infraestructura** | AWS Aurora PostgreSQL Cloud Cluster (`aurora-mod4`, esquema `loss_prevention_dwh`) |
+| **ETL Pipeline** | `scripts/etl_pipeline.py` automatizado de extremo a extremo, modular e idempotente (pandas + SQLAlchemy) |
+| **SQL Avanzado** | Funciones de ventana analíticas (`LAG`), funciones de clasificación (`RANK`), Common Table Expressions (`CTEs`) y agregación condicional (`COUNT FILTER`) |
+| **Dashboard** | Aplicación web interactiva nativa desarrollada en Python con **Streamlit** y **Plotly Express** |
 
-Mediante técnicas de *Time-shifting* e *ID-scaling*, se expandió el volumen operacional de manera controlada hasta alcanzar **15,000 transacciones únicas**, garantizando la variabilidad numérica de los montos, la dispersión a lo largo de 15 días consecutivos y la preservación absoluta de la integridad referencial de las dimensiones del negocio.
+## 🎯 Problema y Motivación (Business Case)
+En la operación de retail moderno, las mermas derivadas de actividades fraudulentas en puntos de venta físicos (POS) y canales digitales representan impactos críticos sobre el margen de utilidad neta. Identificar estas anomalías de forma manual sobre bases transaccionales transitorias es inviable debido a la velocidad y el volumen de las operaciones. 
+
+Este entorno analítico de Data Warehouse responde a tres dolores de cabeza del negocio:
+1. **Velocidad de Compra (Clonación):** Detectar si una misma identidad de cliente está operando terminales distintas en intervalos de tiempo físicamente imposibles.
+2. **Vulnerabilidad de Sucursales:** Identificar qué comercios específicos están registrando mermas financieras severas por fraudes confirmados para desplegar auditorías físicas.
+3. **Comportamiento por Categoría:** Descubrir cuáles pasillos o modalidades de venta sufren la mayor tasa de incidencia criminal para ajustar las reglas automáticas de prevención de pérdidas.
 
 ---
+
+## 📦 Arquitectura y Origen de los Datos (Flujo End-to-End)
+
+Los datos crudos de origen emulan el ecosistema fragmentado de un sistema transaccional (OLTP). El pipeline ETL toma como insumos los siguientes archivos CSV heterogéneos alojados localmente dentro del directorio `/datasets`:
+* `customer_data.csv` y `account_activity.csv` (Datos demográficos y financieros del cliente).
+* `merchant_data.csv` y `transaction_category_labels.csv` (Metadatos de las sucursales y giros comerciales).
+* `transaction_records.csv`, `transaction_metadata.csv`, `anomaly_scores.csv` y `amount_data.csv` (Métricas operacionales y scores de riesgo).
+* `fraud_indicators.csv` y `suspicious_activity.csv` (Banderas e indicadores de auditoría).
+
+### 🧠 Algoritmo de Escalamiento Volumétrico (Data Augmentation)
+Dado que las muestras públicas de origen venían limitadas a 1,000 transacciones, se diseñó un motor de **Data Augmentation** programático dentro de la fase de transformación en Python. El algoritmo aplica un bucle multiplicador con desfases controlados (*Time-shifting* e *ID-scaling*), expandiendo el volumen analítico a **15,000 registros transaccionales únicos**. Esta técnica simula un entorno analítico corporativo de alta carga (*Stress Testing*) garantizando la variabilidad de montos, distribución temporal y la preservación absoluta de la integridad referencial.
+
+---
+
+## 📂 Estructura del Repositorio
+
+El proyecto mantiene una estructura modular y limpia para garantizar la reproducibilidad completa del entorno analítico:
+
+```text
+proyecto-prevencion-fraude/
+├── .gitignore                   # Excluye del control de versiones los CSVs operativos pesados
+├── README.md                    # Portada, decisiones de diseño Kimball y hallazgos del negocio
+├── datasets/                    # Carpeta local contenedora de los CSVs operativos crudos
+│   ├── customer_data.csv
+│   ├── account_activity.csv
+│   ├── merchant_data.csv
+│   ├── transaction_category_labels.csv
+│   ├── transaction_records.csv
+│   ├── transaction_metadata.csv
+│   ├── anomaly_scores.csv
+│   ├── amount_data.csv
+│   ├── fraud_indicators.csv
+│   └── suspicious_activity.csv
+├── scripts/                     # Scripts de automatización de infraestructura e ingesta
+│   ├── 01_schema_ddl.sql        # Definición del esquema e integridad relacional en AWS Aurora
+│   └── etl_pipeline.py          # Código modular E-T-L y Data Augmentation en Python
+├── analisis/                    # Capa analítica avanzada
+│   └── queries_analiticas.sql   # Consultas de SQL avanzado optimizadas para PostgreSQL
+└── dashboard/                   # Capa de Business Intelligence y Explotación
+    ├── app.py                   # Aplicación interactiva con Streamlit y Plotly
+    └── dashboard_view.jpg       # Evidencia gráfica del portal analítico funcionando
+
+--- 
+## 🛠️ Cómo Ejecutar e Instalar (Paso a Paso)
+
+### 1. Preparación de la Infraestructura en AWS Aurora
+Asume que se cuenta con el clúster cloud activo del diplomado (`aurora-mod4`). Desde tu cliente SQL (como **DBeaver**), abre una pestaña de consola conectada al clúster y ejecuta íntegramente el script `scripts/01_schema_ddl.sql`. Esto creará el esquema aislado `loss_prevention_dwh` y las cuatro tablas relacionales vacías con sus respectivas Primary Keys, Surrogate Keys e índices de optimización.
+
+### 2. Configuración del Entorno de Python
+Instala las librerías necesarias en tu sistema operativo ejecutando el siguiente comando en la terminal de tu Mac:
+```bash
+pip install pandas sqlalchemy psycopg2-binary streamlit plotly
 
 ## 2. Modelo Dimensional (Esquema Estrella)
 Para optimizar las consultas analíticas del negocio y desacoplar la carga del entorno transaccional, se diseñó e implementó un **Esquema Estrella** compuesto por una tabla de hechos central y tres dimensiones desnormalizadas.
