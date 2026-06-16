@@ -12,44 +12,45 @@ Mediante técnicas de *Time-shifting* e *ID-scaling*, se expandió el volumen op
 
 ---
 
-## 🏗️ 2. Modelo Dimensional (Esquema Estrella)
+## 2. Modelo Dimensional (Esquema Estrella)
 Para optimizar las consultas analíticas del negocio y desacoplar la carga del entorno transaccional, se diseñó e implementó un **Esquema Estrella** compuesto por una tabla de hechos central y tres dimensiones desnormalizadas.
 
-+------------------------------------+
-                |     Dim_Clientes                   |
-                +------------------------------------+
-                | PK  | cliente_key (Surrogate)      |
-                |     | customer_id (Natural)        |
-                |     | nombre, edad, saldo_cuenta   |
-                |     | es_sospechoso (Historial)    |
-                +------------------------------------+
-                                  |
-                                  | 1:N
-                                  v
+```text
+                    +------------------------------------+
+                    |            Dim_Clientes            |
+                    +------------------------------------+
+                    | PK  | cliente_key (Surrogate)      |
+                    |     | customer_id (Natural)        |
+                    |     | nombre, edad, saldo_cuenta   |
+                    |     | es_sospechoso (Historial)    |
+                    +------------------------------------+
+                                      |
+                                      | 1:N
+                                      v
 +------------------------------------+     +------------------------------------+
-|     Dim_Comercios                  |     |     Fact_Transacciones             |
+|           Dim_Comercios            |     |         Fact_Transacciones         |
 +------------------------------------+     +------------------------------------+
 | PK  | comercio_key (Surrogate)     |     | PK  | transaction_id               |
 |     | merchant_id (Natural)        |---->| FK  | cliente_key                  |
 |     | nombre_comercio, ubicacion   | 1:N | FK  | comercio_key                 |
 +------------------------------------+     | FK  | tiempo_key                   |
-|     | monto, anomaly_score         |
-|     | es_fraude (Flag)             |
-|     | categoria (Degenerado)       |
-|     | tarjeta_simulada_hash        |
-+------------------------------------+
-^
-| 1:N
-|
-+------------------------------------+
-|     Dim_Tiempo                     |
-+------------------------------------+
-| PK  | tiempo_key (Surrogate)       |
-|     | fecha_completa (Timestamp)   |
-|     | anio, mes, dia, hora, minuto |
-|     | dia_semana, es_fin_de_semana |
-+------------------------------------+
-
+                                           |     | monto, anomaly_score         |
+                                           |     | es_fraude (Flag)             |
+                                           |     | categoria (Degenerado)       |
+                                           |     | tarjeta_simulada_hash        |
+                                           +------------------------------------+
+                                                              ^
+                                                              | 1:N
+                                                              |
+                                           +------------------------------------+
+                                           |             Dim_Tiempo             |
+                                           +------------------------------------+
+                                           | PK  | tiempo_key (Surrogate)       |
+                                           |     | fecha_completa (Timestamp)   |
+                                           |     | anio, mes, dia, hora, minuto |
+                                           |     | dia_semana, es_fin_de_semana |
+                                           +------------------------------------+
+```
 ### 💡 Decisiones de Diseño Kimball
 * **Grano de la Fact Table:** El átomo más fino disponible en el origen de datos es una fila por transacción individual única ejecutada en el ecosistema.
 * **Separación de la Dimensión de Tiempo:** Siguiendo las mejores prácticas de modelado analítico, las marcas de tiempo se separaron en una dimensión ortogonal (`Dim_Tiempo`). Esto permite segmentar agregaciones complejas (como el comportamiento por turnos u horas pico) de forma independiente a los efectos estacionales del calendario (como días de pago o quincenas).
