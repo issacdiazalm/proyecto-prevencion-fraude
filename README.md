@@ -81,15 +81,15 @@ pip install pandas sqlalchemy psycopg2-binary streamlit plotly
 ### 3. Ejecución del Pipeline ETL Automatizado (Variables de Entorno)
 Para cumplir con las buenas prácticas de seguridad y evitar dejar contraseñas hardcodeadas en texto plano en GitHub, las credenciales de AWS se inyectan directamente en la memoria de la terminal al arrancar el proceso:
 ```bash
-AWS_DB_PASS='TUPASSWORD' AWS_DB_HOST='aurora-mod4.cluster-XXX.us-east-1.rds.amazonaws.com' database northwind python scripts/etl_pipeline.py
+AWS_DB_PASS='TUPASSWORD' AWS_DB_HOST='aurora-mod4.cluster-XXX.us-east-1.rds.amazonaws.com' --database northwind --python scripts/etl_pipeline.py
 ```
 Mecánica del Script: El pipeline limpiará de forma idempotente los residuos históricos mediante un comando TRUNCATE CASCADE, procesará las transformaciones, ejecutará el algoritmo de Data Augmentation a 15,000 registros y poblará las tablas relacionales de la nube automáticamente.
 
 ### 4. Lanzamiento del Dashboard Analítico Interactivo
 Para encender el portal de visualización dinámico conectado por canal seguro SSL a AWS Aurora, ejecuta el siguiente comando en tu consola:
-'''Bash
+```bash
 AWS_DB_PASS='TUPASSWORD' AWS_DB_HOST='aurora-mod4.cluster-XXX.us-east-1.rds.amazonaws.com' streamlit run dashboard/app.py
-'''
+```
 Esto levantará el servidor web local y abrirá de manera automática la pestaña del navegador en la dirección http://localhost:8501
 
 ## 2. Modelo Dimensional (Esquema Estrella)
@@ -160,6 +160,64 @@ Para dar cumplimiento y demostrar el dominio teórico de las técnicas de SQL Av
 * **Funciones de Ventana de Clasificación (`RANK`) combinadas con CTEs:** Utilizada para aislar y construir el podio financiero de las sucursales con mayores pérdidas económicas derivadas de fraudes confirmados.
 * **Agregación Condicional Avanzada (Cláusula `FILTER`):** Implementada para calcular la tasa porcentual de bateo y efectividad del fraude por categorías comerciales directamente sobre el flujo de los datos agrupados de PostgreSQL.
 
+## 💻 SQL Avanzado Destacado
+
+Para certificar el dominio técnico del motor de base de datos de PostgreSQL, el archivo `analisis/queries_analiticas.sql` implementa las siguientes técnicas avanzadas sobre las 15,000 filas cargadas en la nube:
+
+### Query 1: Velocidad de Compra (Técnica: Función de Ventana `LAG`)
+Esta consulta calcula la brecha de tiempo en minutos entre la transacción actual y la inmediata anterior efectuada por el **mismo cliente**, exponiendo fraudes por velocidad geográfica o clonación de tarjetas en cajas POS:
+```sql
+SELECT 
+    f.transaction_id, 
+    c.customer_id, 
+    m.nombre_comercio, 
+    t.fecha_completa, 
+    f.monto,
+    LAG(t.fecha_completa) OVER(PARTITION BY c.customer_id ORDER BY t.fecha_completa) as fecha_transaccion_anterior,
+    EXTRACT(EPOCH FROM (t.fecha_completa - LAG(t.fecha_completa) OVER(PARTITION BY c.customer_id ORDER BY t.fecha_completa))) / 60 as minutos_desde_ultima_compra
+FROM loss_prevention_dwh.fact_transacciones f
+JOIN loss_prevention_dwh.dim_clientes c ON f.cliente_key = c.cliente_key
+JOIN loss_prevention_dwh.dim_comercios m ON f.comercio_key = m.comercio_key
+JOIN loss_prevention_dwh.dim_tiempo t ON f.tiempo_key = t.tiempo_key
+ORDER BY c.customer_id, t.fecha_completa 
+LIMIT 100;
+```
+### Query 2: Top 5 de Comercios más Vulnerables (Técnicas: CTE + Función de Ventana RANK)
+Aísla las pérdidas financieras brutas asociadas exclusivamente a incidentes delictivos confirmados y construye el podio estricto de los comercios críticos de la organización mediante una Expresión de Tabla Común (CTE):
+```sql
+WITH PerdidasPorComercio AS (
+    SELECT 
+        m.nombre_comercio, 
+        m.ubicacion,
+        SUM(f.monto) FILTER (WHERE f.es_fraude = 1) as total_perdido_fraude,
+        COUNT(f.transaction_id) as transacciones_totales
+    FROM loss_prevention_dwh.fact_transacciones f
+    JOIN loss_prevention_dwh.dim_comercios m ON f.comercio_key = m.comercio_key
+    GROUP BY m.nombre_comercio, m.ubicacion
+)
+SELECT 
+    nombre_comercio, 
+    ubicacion, 
+    total_perdido_fraude, 
+    transacciones_totales,
+    RANK() OVER (ORDER BY total_perdido_fraude DESC) as ranking_riesgo
+FROM PerdidasPorComercio 
+WHERE total_perdido_fraude IS NOT NULL 
+LIMIT 5;
+```
+
+### Query 3: Efectividad del Fraude por Categoría (Técnica: Agregación Condicional FILTER)
+Calcula analíticamente la tasa porcentual de transacciones fraudulentas respecto al volumen bruto total operado en cada categoría de retail:
+```sql
+SELECT 
+    categoria, 
+    COUNT(transaction_id) as transacciones_totales,
+    COUNT(transaction_id) FILTER (WHERE es_fraude = 1) as fraudes_detectados,
+    ROUND((COUNT(transaction_id) FILTER (WHERE es_fraude = 1)::NUMERIC / COUNT(transaction_id)) * 100, 2) as porcentaje_efectivo_fraude
+FROM loss_prevention_dwh.fact_transacciones
+GROUP BY categoria 
+ORDER BY porcentaje_efectivo_fraude DESC;
+```
 ---
 
 ## 📊 6. Visualización Interactiva (Streamlit Portal)
@@ -173,4 +231,8 @@ A través de la explotación interactiva del portal y la segmentación por pará
 1. **Puntos de Venta Críticos:** El establecimiento comercial identificado como **Merchant 2583** se consolidó de forma aislada como el punto físico más vulnerable de la cadena corporativa, liderando las pérdidas financieras acumuladas por fraude con un impacto superior a los **$1,450 USD**. Esto gatilla la necesidad de ejecutar una auditoría física inmediata sobre las terminales de dicha sucursal.
 2. **Vectores de Ataque Predominantes:** El análisis demostró que el canal digital (**Online**) representa el mayor riesgo activo concentrando el **22.7%** de los incidentes de fraude. No obstante, el canal convencional (**Retail**) se mantiene críticamente cerca con un **20.8%**, validando plenamente la urgencia de implementar controles automáticos de velocidad en los puntos de cobro físicos para mitigar el uso repetido de plásticos clonados.
 
+## 📚 Referencias
+* *Kimball, R. (2013). The Data Warehouse Toolkit: The Definitive Guide to Dimensional Modeling.*
+* *PostgreSQL Advanced Documentation - Window Functions & Aggregate Filters.*
+* *Material oficial del Diplomado: Módulo 4 - Cloud Data Warehousing e Ingeniería de Datos.*
 
