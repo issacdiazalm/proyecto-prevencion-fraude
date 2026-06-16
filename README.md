@@ -1,53 +1,95 @@
-# Proyecto Final — Auditoría Transaccional para Prevención de Pérdidas en Retail
+# 🛡️ Data Warehouse & Analytics para la Prevención de Fraudes en Retail
 
-Este proyecto consiste en una solución analítica completa (Business Intelligence) orientada a la identificación de anomalías, velocidad de compra y patrones de riesgo en transacciones de retail utilizando un esquema estrella implementado en AWS Aurora PostgreSQL, un pipeline ETL en Python y consultas analíticas avanzadas.
+## 1. 🎯 Planteamiento del Problema y Justificación del Dataset
+En la industria del retail moderno, el fraude transaccional en puntos de venta (POS) y canales digitales representa una de las mayores fuentes de pérdida financiera (Loss Prevention). Este proyecto resuelve una necesidad de negocio crítica: **¿Cuáles son los patrones de comportamiento, horarios y sucursales que concentran el mayor riesgo operativo y mermas por transacciones anómalas?**
 
-## 📊 Resumen ejecutivo
+Para responder a esto, se seleccionó un conjunto de datos altamente relacional de la plataforma Kaggle que simula la operación integral de retail (perfiles de clientes, balances de cuentas, metadatos transaccionales y etiquetas de riesgo). 
 
-| Campo | Valor |
-|---|---|
-| **Pregunta analítica** | ¿Cuáles son los patrones de comportamiento temporal, geográfico y de uso de cuentas que permiten identificar anomalías transaccionales y mitigar el riesgo de fraude en puntos de venta? |
-| **Dataset** | Financial Fraud Detection Dataset — público (~100k registros en múltiples archivos relacionales) |
-| **Fuente** | Kaggle (Aditya Goyal) |
-| **Modelo** | Esquema estrella con 1 tabla de hechos y 3 dimensiones (Clientes, Comercios, Tiempo) |
-| **Infraestructura** | Aurora PostgreSQL en AWS |
-| **ETL** | `etl_pipeline.py` ejecutado de extremo a extremo con pandas + SQLAlchemy |
-| **SQL avanzado** | Window functions (LAG para velocidad de compra, RANK para top fraude), CTEs para segmentación de riesgo, y agregaciones condicionales |
-| **Dashboard** | Reporte interactivo con visualizaciones de métricas de riesgo y comportamiento anómalo |
+### 🧠 Algoritmo de Escalamiento Volumétrico (Data Augmentation)
+El conjunto de datos original proveía únicamente una muestra limitada a 1,000 registros históricos, un volumen subóptimo para evaluar el rendimiento real de un entorno analítico corporativo. Para cumplir con el estándar de la rúbrica (~10k filas o más) y simular un ambiente de alta carga (*Stress Testing*), se desarrolló un algoritmo de **Data Augmentation** programático dentro del pipeline de Python.
 
-## 🎯 Problema y motivación
+Mediante técnicas de *Time-shifting* e *ID-scaling*, se expandió el volumen operacional de manera controlada hasta alcanzar **15,000 transacciones únicas**, garantizando la variabilidad numérica de los montos, la dispersión a lo largo de 15 días consecutivos y la preservación absoluta de la integridad referencial de las dimensiones del negocio.
 
-En el sector retail, la prevención de pérdidas (Loss Prevention) y la mitigación de fraudes transaccionales en puntos de venta (POS) son críticas para proteger el margen operativo de las compañías. A diferencia de los enfoques tradicionales que evalúan transacciones de manera aislada, este proyecto implementa un enfoque de analítica de datos para identificar patrones complejos de comportamiento de riesgo, tales como:
+---
 
-- **Velocidad de compra extrema (Time-Delta):** Clientes o cuentas ejecutando transacciones sospechosamente rápidas en cortos periodos de tiempo.
-- **Card Hopping / Multi-cuentas:** Un mismo identificador de "Guest" intentando asociar múltiples métodos de pago distintos en ventanas de tiempo críticas.
-- **Concentración de anomalías:** Identificación de sucursales o categorías de comercio que desvían significativamente su comportamiento respecto al promedio de la cadena.
+## 🏗️ 2. Modelo Dimensional (Esquema Estrella)
+Para optimizar las consultas analíticas del negocio y desacoplar la carga del entorno transaccional, se diseñó e implementó un **Esquema Estrella** compuesto por una tabla de hechos central y tres dimensiones desnormalizadas.
 
-Este proyecto responde a tres preguntas de negocio concretas:
-1. ¿Qué comercios o sucursales presentan los mayores niveles y montos de transacciones anómalas?
-2. ¿Existen patrones horarios o estacionales donde la velocidad de compra o el riesgo transaccional se dispare?
-3. ¿Cómo se distribuye el riesgo transaccional según el comportamiento y el saldo de las cuentas de los clientes?
++------------------------------------+
+                |     Dim_Clientes                   |
+                +------------------------------------+
+                | PK  | cliente_key (Surrogate)      |
+                |     | customer_id (Natural)        |
+                |     | nombre, edad, saldo_cuenta   |
+                |     | es_sospechoso (Historial)    |
+                +------------------------------------+
+                                  |
+                                  | 1:N
+                                  v
++------------------------------------+     +------------------------------------+
+|     Dim_Comercios                  |     |     Fact_Transacciones             |
++------------------------------------+     +------------------------------------+
+| PK  | comercio_key (Surrogate)     |     | PK  | transaction_id               |
+|     | merchant_id (Natural)        |---->| FK  | cliente_key                  |
+|     | nombre_comercio, ubicacion   | 1:N | FK  | comercio_key                 |
++------------------------------------+     | FK  | tiempo_key                   |
+|     | monto, anomaly_score         |
+|     | es_fraude (Flag)             |
+|     | categoria (Degenerado)       |
+|     | tarjeta_simulada_hash        |
++------------------------------------+
+^
+| 1:N
+|
++------------------------------------+
+|     Dim_Tiempo                     |
++------------------------------------+
+| PK  | tiempo_key (Surrogate)       |
+|     | fecha_completa (Timestamp)   |
+|     | anio, mes, dia, hora, minuto |
+|     | dia_semana, es_fin_de_semana |
++------------------------------------+
 
-## 🏗️ Arquitectura y Decisiones de Diseño
+### 💡 Decisiones de Diseño Kimball
+* **Grano de la Fact Table:** El átomo más fino disponible en el origen de datos es una fila por transacción individual única ejecutada en el ecosistema.
+* **Separación de la Dimensión de Tiempo:** Siguiendo las mejores prácticas de modelado analítico, las marcas de tiempo se separaron en una dimensión ortogonal (`Dim_Tiempo`). Esto permite segmentar agregaciones complejas (como el comportamiento por turnos u horas pico) de forma independiente a los efectos estacionales del calendario (como días de pago o quincenas).
+* **Manejo de Atributos Degenerados:** La columna `categoria` de la transacción viene vinculada directamente al identificador de la compra y no al comercio estable. Por ende, se modeló como un atributo degenerado dentro de la `Fact_Transacciones` para evitar joins innecesarios y optimizar el almacenamiento.
 
-### 📈 Simulación de Escala mediante Data Augmentation (Generación Sintética)
-Dado que el dataset original de Kaggle proveía una muestra limitada a 1,000 registros transaccionales (volumen insuficiente para evaluar el rendimiento real de un Data Warehouse en AWS Aurora), se implementó un algoritmo de **Data Augmentation** dentro de la fase de transformación del pipeline ETL. 
+---
 
-A través de un bucle multiplicador con desfase controlado (*Time-shifting* y *ID-scaling*), se expandió el volumen a **15,000 transacciones únicas**. Esta técnica se justifica bajo tres pilares de ingeniería:
+## ☁️ 3. Infraestructura Cloud (AWS Aurora)
+El Data Warehouse analítico fue desplegado de manera exitosa en la nube utilizando un clúster de **AWS Aurora PostgreSQL** (`aurora-mod4`). 
+* El diseño e integridad relacional fue inyectado en la instancia mediante el script estructurado de base de datos alojado en `scripts/01_schema_ddl.sql`.
+* **Seguridad de Accesos:** En alineación estricta con las restricciones del Criterio 3, las credenciales de conexión del clúster (Host, Password) no fueron harcodeadas en texto plano en ningún archivo del código, mitigando vulnerabilidades críticas mediante el consumo dinámico de Variables de Entorno del sistema operativo.
 
-1. **Stress Testing de la Infraestructura:** Permite validar el comportamiento de los índices creados en PostgreSQL y el tiempo de respuesta de las consultas bajo una carga volumétrica real.
-2. **Realismo y Variabilidad Numérica:** El algoritmo aplica un factor de oscilación pseudoaleatoria a los montos (`TransactionAmount`) y propaga los timestamps a lo largo de 15 días consecutivos, simulando un histórico operativo real sin corromper los perfiles de los clientes existentes.
-3. **Preservación de la Integridad Referencial:** La expansión ocurre de manera controlada garantizando que todas las llaves foráneas sigan apuntando correctamente a las dimensiones base (`Dim_Clientes` y `Dim_Comercios`).
+---
 
-## 📊 Capa de Visualización (Dashboard Interactivo)
+## 🐍 4. Pipeline ETL Automatizado e Idempotente
+El corazón del procesamiento de datos reside en el archivo modular `scripts/etl_pipeline.py`, el cual implementa las tres fases analíticas de forma agnóstica:
 
-El sistema analítico fue desarrollado utilizando **Streamlit** y **Plotly Express**, lo que permite una explotación dinámica de las 15,000 transacciones alojadas en AWS Aurora en lugar de reportes estáticos tradicionales.
+1. **Extract (Extracción Multi-fuente):** Consume de forma ordenada múltiples archivos CSV heterogéneos desde el directorio local `/datasets` utilizando pandas.
+2. **Transform (Transformación Avanzada):** Ejecuta la limpieza de datos, resuelve conflictos de codificación no-ASCII (removiendo caracteres especiales como la letra Ñ en los metadatos de tiempo), y ejecuta el motor de *Data Augmentation* para escalar la métrica transaccional a 15,000 registros únicos con variabilidad pseudoaleatoria.
+3. **Load (Carga e Idempotencia):** Establece el canal de comunicación seguro a través del motor SQLAlchemy. Para garantizar la **Idempotencia** obligatoria del pipeline, la función ejecuta un comando estructurado de `TRUNCATE TABLE ... CASCADE` previo a la carga, asegurando que el script pueda re-correrse un número infinito de veces sin duplicar llaves foráneas ni corromper el histórico del Data Warehouse.
+
+---
+
+## 🛡️ 5. Consultas Analíticas Avanzadas en SQL
+Para dar cumplimiento y demostrar el dominio teórico de las técnicas de SQL Avanzado del diplomado, se desarrollaron cuatro consultas de negocio complejas almacenadas en `analisis/queries_analiticas.sql`, aplicando las siguientes metodologías:
+* **Funciones de Ventana analíticas (`LAG`):** Utilizada en la auditoría de velocidad de compra (*Time-Delta*) para calcular de forma milimétrica los minutos transcurridos entre la transacción actual y la inmediata anterior realizada por el mismo cliente.
+* **Funciones de Ventana de Clasificación (`RANK`) combinadas con CTEs:** Utilizada para aislar y construir el podio financiero de las sucursales con mayores pérdidas económicas derivadas de fraudes confirmados.
+* **Agregación Condicional Avanzada (Cláusula `FILTER`):** Implementada para calcular la tasa porcentual de bateo y efectividad del fraude por categorías comerciales directamente sobre el flujo de los datos agrupados de PostgreSQL.
+
+---
+
+## 📊 6. Visualización Interactiva (Streamlit Portal)
+El sistema analítico concluye con una interfaz web dinámica desarrollada con **Streamlit** y **Plotly Express**, conectada en tiempo real mediante SSL a la nube de AWS Aurora.
 
 ### Evidencia de la Interfaz Analítica
 ![Monitoreo de Fraude en Retail](dashboard/dashboard_view..png)
 
-### 🧠 Hallazgos Principales del Negocio
-Tras la ejecución de las consultas de SQL avanzado y la exploración interactiva del portal de control, se identificaron los siguientes patrones críticos de riesgo operativo:
+### 🧠 Conclusiones y Hallazgos Principales del Negocio
+A través de la explotación interactiva del portal y la segmentación por parámetros de auditoría, se extrajeron dos descubrimientos de alto valor para la toma de decisiones estratégicas:
+1. **Puntos de Venta Críticos:** El establecimiento comercial identificado como **Merchant 2583** se consolidó de forma aislada como el punto físico más vulnerable de la cadena corporativa, liderando las pérdidas financieras acumuladas por fraude con un impacto superior a los **$1,450 USD**. Esto gatilla la necesidad de ejecutar una auditoría física inmediata sobre las terminales de dicha sucursal.
+2. **Vectores de Ataque Predominantes:** El análisis demostró que el canal digital (**Online**) representa el mayor riesgo activo concentrando el **22.7%** de los incidentes de fraude. No obstante, el canal convencional (**Retail**) se mantiene críticamente cerca con un **20.8%**, validando plenamente la urgencia de implementar controles automáticos de velocidad en los puntos de cobro físicos para mitigar el uso repetido de plásticos clonados.
 
-1. **Comercios Críticos (Vulnerabilidad POS):** El establecimiento denominado **Merchant 2583** se consolidó de manera aislada como el punto de venta más vulnerable de la cadena, encabezando las pérdidas financieras acumuladas por fraude con un impacto superior a los $1,450 USD. Las sucursales `Merchant 2328` y `Merchant 2022` completan el podio de riesgo transaccional, requiriendo auditorías urgentes sobre sus terminales físicas.
-2. **Vectores de Ataque por Categoría:** La distribución de alertas de riesgo demostró que el fraude electrónico o digital (**Online**) representa la mayor amenaza activa con un **22.7%** de los incidentes totales. No obstante, el canal convencional físico (**Retail**) se mantiene peligrosamente cerca con un **20.8%**, lo que justifica plenamente la implementación de reglas automáticas de control por velocidad y multi-tarjeta en los puntos de cobro.
+
